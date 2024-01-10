@@ -3,39 +3,31 @@ import Places from './Places.jsx';
 import Error from './Error.jsx'
 import { sortPlacesByDistance } from '../loc.js';
 import { fetchAvailablePlaces } from '../http.js';
+import { useFetch } from '../hooks/useFetch.js';
+
+async function fetchSortedPlaces() {
+  const places = await fetchAvailablePlaces();
+
+  return new Promise((resolve,reject) => {
+    //fetch the users location
+    navigator.geolocation.getCurrentPosition((position) => {
+      const sortedPlaces = sortPlacesByDistance(places, 
+        position.coords.latitude, 
+        position.coords.longitude);
+
+        resolve(sortedPlaces);
+    });
+  });
+}
 
 export default function AvailablePlaces({ onSelectPlace }) {
-  const [isFetching, setIsFetching] = useState(false);
-  const [availablePlaces, setAvailablePlaces] = useState([]);
-  const [error, setError] = useState();
-
-  //keep this fetch from running in an infinite loop with useEffect
-  useEffect(() => {
-    setIsFetching(true);
-    async function fetchPlaces() {
-      //check for error with try/catch
-      try {
-        const places = await fetchAvailablePlaces();
-
-        //fetch the users location
-        navigator.geolocation.getCurrentPosition((position) => {
-          const sortedPlaces = sortPlacesByDistance(places, position.coords.latitude, position.coords.longitude)
-          setAvailablePlaces(sortedPlaces);
-          //it might seem like this line would be executed immediately
-          //but this line won't be executed until the previous are done
-          setIsFetching(false);
-        });
-
-      } catch (error) {
-        //... put code here to handle error and prevent crash
-        setError({ message: error.message || 'Could not fetch places, please try again later.' });
-
-        setIsFetching(false);
-      }
-    }
-
-    fetchPlaces();
-  }, []);
+  //below is the custom hook
+  //ignore the setFetchedData parameter returned, we don't need it here
+  const {
+    isFetching,
+    error,
+    fetchedData: availablePlaces
+  } = useFetch(fetchSortedPlaces, []);
 
   if (error) {
     return <Error title="An error occurred!"
